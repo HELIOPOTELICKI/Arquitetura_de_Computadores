@@ -64,17 +64,105 @@ inicio:
 
    CALL INICIALIZA_8251
    CALL INICIALIZA_8255_PORTB_OUTPUT
-
+   
+   MOV BX, OFFSET TITULO
+   CALL MANDA_MENSAGEM
+   
    CALL GLCD_ATIVA
-
    CALL GLCD_CLR
 
    MOV BX, OFFSET TEXTO
    CALL RECEBE_MENSAGEM
-   CALL SOMA_DIGITOS
-   CALL INSERE_BASE_LCD
-   CALL INSERE_RESULTADO_LCD
+   
+   CALL REPETICOES 
+   
+   CALL INSERE_BASE_LCD ; COLOCA OS NUMEROS BASE
+   
+   MOV AH, 0  ;DEFINIDO COLUNA 
+   MOV AL, 53 ;DEFININDO LINHA
+   MOV BH, 1  ; ASCENDER OS PIXELS
+   
+GRAFICO_BASE:
+   MOV TRACO, 0
+   INC TAMANHO
+   CALL GLCD_DRAW_POINT ; COLOCA UM PIXEL NAS COORDENADAS AH - AL
+   
+PULA:
+   CMP TRACO, 4
+   JE SAI_ROTINA 
+   INC TRACO
+   INC AH
+   CALL GLCD_DRAW_POINT ; COLOCA UM PIXEL NAS COORDENADAS AH - AL
+   JMP PULA 
+
+SAI_ROTINA: 
+   CMP TAMANHO, 10
+   JE FIM_BASE
+ 
+   ADD AH, 4 ; DA ESPACO ENTRE TRACOS
+
+   JMP GRAFICO_BASE
+   
+FIM_BASE:
+   MOV AH, 0 ; DEFINIDO COLUNA 
+   SUB AL, 2 ; DEFININDO LINHA
+   MOV BH, 1 ; ASCENDER OS PIXELS
+
+   MOV SI, OFFSET REPETICOES_DIGITADOS
+   INC SI
+   MOV CX, 10
+   
+GRAFICO_REPETICOES:
+   PUSH CX
+   MOV CL,[SI]
+   SUB CL, 48
+   
+   CALL CHAMA_GRAFICO
+   ADD AH,8
+   INC SI
+   POP CX
+   LOOP GRAFICO_REPETICOES
    JMP $
+  
+AUMENTA_VEZES_NUMERO: 
+   SUB AL,48
+   MOV AH,0
+   MOV BX,AX
+   INC REPETICOES_DIGITADOS[BX]
+   RET
+
+CHAMA_GRAFICO:
+   PUSHF
+   PUSH AX
+   CMP CX,0
+   JE FIM_MOSTRA_GRAFICO
+   
+MOSTRA_GRAFICO:
+   CALL COLOCA_GRAFICO_RESULTADO
+   SUB AL, 2
+   LOOP MOSTRA_GRAFICO
+   
+FIM_MOSTRA_GRAFICO:
+   POP AX
+   POPF
+   RET
+
+COLOCA_GRAFICO_RESULTADO:
+   PUSH AX
+   PUSH CX
+   MOV CX,5
+
+GRAFICO_ESCREVE:
+   CALL GLCD_DRAW_POINT
+   INC AH
+   LOOP GRAFICO_ESCREVE
+   CALL INSERE_RESULTADO_LCD ; PRINTA A VARIAVEL COM AS REPETICOES 
+   
+   POP CX
+   POP AX  
+   RET
+
+;======================================= FIM MEU CODIGO =======================================;
 
    MOV SEGUNDOS_UNID, 0
    MOV SEGUNDOS_DEZ,  0
@@ -83,7 +171,7 @@ MOSTRA:
    CALL DISPLAY
    JMP MOSTRA
 
-SOMA_DIGITOS:
+REPETICOES:
    PUSHF
    PUSH AX
    PUSH CX
@@ -94,7 +182,7 @@ SOMA_DIGITOS:
 REPETE_ACHA_LETRA:
    CMP SI, 0
    JE SAI_ACHA_LETRA
-   MOV BX, OFFSET TABELA_REPETICOES
+   MOV BX, OFFSET REPETICOES_DIGITADOS
    INC BX
    MOV AL, [SI]
    SUB AL, 48
@@ -138,14 +226,14 @@ INSERE_RESULTADO_LCD:
    PUSH BX
    PUSH CX
    MOV CL, 0
-   MOV BX, OFFSET TABELA_REPETICOES
+   MOV BX, OFFSET REPETICOES_DIGITADOS
    INC BX
 
 CONTA_RESULTADO:
    CMP CL, 10
    JE SAI_CONTA_RESULTADO
    MOV AH, CL
-   MOV AL, 6
+   MOV AL, 0
    CALL GLCD_GOTO_XY_TEXT
    MOV AL, [BX]
    CALL PRINT_CAR
@@ -352,6 +440,10 @@ RECEBE_MENSAGEM:
    MOV CONTADOR_LETRAS,0
    
 RECEBE_MENSAGEM_CARACTER:
+
+   CMP CONTADOR_LETRAS,50
+   JE SAI_RECEBE_CARACTER
+   
    CALL RECEBE_CARACTER
    CMP  AL,13
    JE SAI_RECEBE_CARACTER
@@ -1067,111 +1159,133 @@ DATA      SEGMENT
    DB	14H, 7FH, 14H, 7FH, 14H ; #
    DB	24H, 2AH, 7FH, 2AH, 12H ; $
    DB	23H, 13H, 08H, 64H, 62H ; %
-   DB	36H, 49H, 55H, 22H, 50H; &
-   DB	00H, 05H, 03H, 00H, 00H; '
-   DB	00H, 1CH, 22H, 41H, 00H; (
-   DB	00H, 41H, 22H, 1CH, 00H; )
-   DB	08H, 2AH, 1CH, 2AH, 08H; *
-   DB	08H, 08H, 3EH, 08H, 08H; +
-   DB	00H, 50H, 30H, 00H, 00H; H,
-   DB	08H, 08H, 08H, 08H, 08H; -
-   DB	00H, 60H, 60H, 00H, 00H; .
-   DB	20H, 10H, 08H, 04H, 02H; /
-   DB	3EH, 51H, 49H, 45H, 3EH; 0
-   DB	00H, 42H, 7FH, 40H, 00H; 1
-   DB	42H, 61H, 51H, 49H, 46H; 2
-   DB	21H, 41H, 45H, 4BH, 31H; 3
-   DB	18H, 14H, 12H, 7FH, 10H; 4
-   DB	27H, 45H, 45H, 45H, 39H; 5
-   DB	3CH, 4AH, 49H, 49H, 30H; 6
-   DB	01H, 71H, 09H, 05H, 03H; 7
-   DB	36H, 49H, 49H, 49H, 36H; 8
-   DB	06H, 49H, 49H, 29H, 1EH; 9
-   DB	00H, 36H, 36H, 00H, 00H; :
-   DB	00H, 56H, 36H, 00H, 00H; ;
-   DB	00H, 08H, 14H, 22H, 41H; <
-   DB	14H, 14H, 14H, 14H, 14H; =
-   DB	41H, 22H, 14H, 08H, 00H; >
-   DB	02H, 01H, 51H, 09H, 06H; ?
-   DB	32H, 49H, 79H, 41H, 3EH; @
-   DB	7EH, 11H, 11H, 11H, 7EH; A
-   DB	7FH, 49H, 49H, 49H, 36H; B
-   DB	3EH, 41H, 41H, 41H, 22H; C
-   DB	7FH, 41H, 41H, 22H, 1CH; D
-   DB	7FH, 49H, 49H, 49H, 41H; E
-   DB	7FH, 09H, 09H, 01H, 01H; F
-   DB	3EH, 41H, 41H, 51H, 32H; G
-   DB	7FH, 08H, 08H, 08H, 7FH; H
-   DB	00H, 41H, 7FH, 41H, 00H; I
-   DB	20H, 40H, 41H, 3FH, 01H; J
-   DB	7FH, 08H, 14H, 22H, 41H; K
-   DB	7FH, 40H, 40H, 40H, 40H; L
-   DB	7FH, 02H, 04H, 02H, 7FH; M
-   DB	7FH, 04H, 08H, 10H, 7FH; N
-   DB	3EH, 41H, 41H, 41H, 3EH; O
-   DB	7FH, 09H, 09H, 09H, 06H; P
-   DB	3EH, 41H, 51H, 21H, 5EH; Q
-   DB	7FH, 09H, 19H, 29H, 46H; R
-   DB	46H, 49H, 49H, 49H, 31H; S
-   DB	01H, 01H, 7FH, 01H, 01H; T
-   DB	3FH, 40H, 40H, 40H, 3FH; U
-   DB	1FH, 20H, 40H, 20H, 1FH; V
-   DB	7FH, 20H, 18H, 20H, 7FH; W
-   DB	63H, 14H, 08H, 14H, 63H; X
-   DB	03H, 04H, 78H, 04H, 03H; Y
-   DB	61H, 51H, 49H, 45H, 43H; Z
-   DB	00H, 00H, 7FH, 41H, 41H; [
-   DB	02H, 04H, 08H, 10H, 20H; "\"
-   DB	41H, 41H, 7FH, 00H, 00H; ]
-   DB	04H, 02H, 01H, 02H, 04H; ^
-   DB	40H, 40H, 40H, 40H, 40H; _
-   DB	00H, 01H, 02H, 04H, 00H; `
-   DB	20H, 54H, 54H, 54H, 78H; a
-   DB	7FH, 48H, 44H, 44H, 38H; b
-   DB	38H, 44H, 44H, 44H, 20H; c
-   DB	38H, 44H, 44H, 48H, 7FH; d
-   DB	38H, 54H, 54H, 54H, 18H; e
-   DB	08H, 7EH, 09H, 01H, 02H; f
-   DB	08H, 14H, 54H, 54H, 3CH; g
-   DB	7FH, 08H, 04H, 04H, 78H; h
-   DB	00H, 44H, 7DH, 40H, 00H; i
-   DB	20H, 40H, 44H, 3DH, 00H; j
-   DB	00H, 7FH, 10H, 28H, 44H; k
-   DB	00H, 41H, 7FH, 40H, 00H; l
-   DB	7CH, 04H, 18H, 04H, 78H; m
-   DB	7CH, 08H, 04H, 04H, 78H; n
-   DB	38H, 44H, 44H, 44H, 38H; o
-   DB	7CH, 14H, 14H, 14H, 08H; p
-   DB	08H, 14H, 14H, 18H, 7CH; q
-   DB	7CH, 08H, 04H, 04H, 08H; r
-   DB	48H, 54H, 54H, 54H, 20H; s
-   DB	04H, 3FH, 44H, 40H, 20H; t
-   DB	3CH, 40H, 40H, 20H, 7CH; u
-   DB	1CH, 20H, 40H, 20H, 1CH; v
-   DB	3CH, 40H, 30H, 40H, 3CH; w
-   DB	44H, 28H, 10H, 28H, 44H; x
-   DB	0CH, 50H, 50H, 50H, 3CH; y
-   DB	44H, 64H, 54H, 4CH, 44H; z
-   DB   00H, 08H, 36H, 41H, 00H; {
-   DB	00H, 00H, 7FH, 00H, 00H; |
-   DB	00H, 41H, 36H, 08H, 00H; }
-   DB	08H, 08H, 2AH, 1CH, 08H; ->
-   DB	08H, 1CH, 2AH, 08H, 08 ; <-
+   DB	36H, 49H, 55H, 22H, 50H ; &
+   DB	00H, 05H, 03H, 00H, 00H ; '
+   DB	00H, 1CH, 22H, 41H, 00H ; (
+   DB	00H, 41H, 22H, 1CH, 00H ; )
+   DB	08H, 2AH, 1CH, 2AH, 08H ; *
+   DB	08H, 08H, 3EH, 08H, 08H ; +
+   DB	00H, 50H, 30H, 00H, 00H ; H,
+   DB	08H, 08H, 08H, 08H, 08H ; -
+   DB	00H, 60H, 60H, 00H, 00H ; .
+   DB	20H, 10H, 08H, 04H, 02H ; /
+   DB	3EH, 51H, 49H, 45H, 3EH ; 0
+   DB	00H, 42H, 7FH, 40H, 00H ; 1
+   DB	42H, 61H, 51H, 49H, 46H ; 2
+   DB	21H, 41H, 45H, 4BH, 31H ; 3
+   DB	18H, 14H, 12H, 7FH, 10H ; 4
+   DB	27H, 45H, 45H, 45H, 39H ; 5
+   DB	3CH, 4AH, 49H, 49H, 30H ; 6
+   DB	01H, 71H, 09H, 05H, 03H ; 7
+   DB	36H, 49H, 49H, 49H, 36H ; 8
+   DB	06H, 49H, 49H, 29H, 1EH ; 9
+   DB	00H, 36H, 36H, 00H, 00H ; :
+   DB	00H, 56H, 36H, 00H, 00H ; ;
+   DB	00H, 08H, 14H, 22H, 41H ; <
+   DB	14H, 14H, 14H, 14H, 14H ; =
+   DB	41H, 22H, 14H, 08H, 00H ; >
+   DB	02H, 01H, 51H, 09H, 06H ; ?
+   DB	32H, 49H, 79H, 41H, 3EH ; @
+   DB	7EH, 11H, 11H, 11H, 7EH ; A
+   DB	7FH, 49H, 49H, 49H, 36H ; B
+   DB	3EH, 41H, 41H, 41H, 22H ; C
+   DB	7FH, 41H, 41H, 22H, 1CH ; D
+   DB	7FH, 49H, 49H, 49H, 41H ; E
+   DB	7FH, 09H, 09H, 01H, 01H ; F
+   DB	3EH, 41H, 41H, 51H, 32H ; G
+   DB	7FH, 08H, 08H, 08H, 7FH ; H
+   DB	00H, 41H, 7FH, 41H, 00H ; I
+   DB	20H, 40H, 41H, 3FH, 01H ; J
+   DB	7FH, 08H, 14H, 22H, 41H ; K
+   DB	7FH, 40H, 40H, 40H, 40H ; L
+   DB	7FH, 02H, 04H, 02H, 7FH ; M
+   DB	7FH, 04H, 08H, 10H, 7FH ; N
+   DB	3EH, 41H, 41H, 41H, 3EH ; O
+   DB	7FH, 09H, 09H, 09H, 06H ; P
+   DB	3EH, 41H, 51H, 21H, 5EH ; Q
+   DB	7FH, 09H, 19H, 29H, 46H ; R
+   DB	46H, 49H, 49H, 49H, 31H ; S
+   DB	01H, 01H, 7FH, 01H, 01H ; T
+   DB	3FH, 40H, 40H, 40H, 3FH ; U
+   DB	1FH, 20H, 40H, 20H, 1FH ; V
+   DB	7FH, 20H, 18H, 20H, 7FH ; W
+   DB	63H, 14H, 08H, 14H, 63H ; X
+   DB	03H, 04H, 78H, 04H, 03H ; Y
+   DB	61H, 51H, 49H, 45H, 43H ; Z
+   DB	00H, 00H, 7FH, 41H, 41H ; [
+   DB	02H, 04H, 08H, 10H, 20H ; "\"
+   DB	41H, 41H, 7FH, 00H, 00H ; ]
+   DB	04H, 02H, 01H, 02H, 04H ; ^
+   DB	40H, 40H, 40H, 40H, 40H ; _
+   DB	00H, 01H, 02H, 04H, 00H ; `
+   DB	20H, 54H, 54H, 54H, 78H ; a
+   DB	7FH, 48H, 44H, 44H, 38H ; b
+   DB	38H, 44H, 44H, 44H, 20H ; c
+   DB	38H, 44H, 44H, 48H, 7FH ; d
+   DB	38H, 54H, 54H, 54H, 18H ; e
+   DB	08H, 7EH, 09H, 01H, 02H ; f
+   DB	08H, 14H, 54H, 54H, 3CH ; g
+   DB	7FH, 08H, 04H, 04H, 78H ; h
+   DB	00H, 44H, 7DH, 40H, 00H ; i
+   DB	20H, 40H, 44H, 3DH, 00H ; j
+   DB	00H, 7FH, 10H, 28H, 44H ; k
+   DB	00H, 41H, 7FH, 40H, 00H ; l
+   DB	7CH, 04H, 18H, 04H, 78H ; m
+   DB	7CH, 08H, 04H, 04H, 78H ; n
+   DB	38H, 44H, 44H, 44H, 38H ; o
+   DB	7CH, 14H, 14H, 14H, 08H ; p
+   DB	08H, 14H, 14H, 18H, 7CH ; q
+   DB	7CH, 08H, 04H, 04H, 08H ; r
+   DB	48H, 54H, 54H, 54H, 20H ; s
+   DB	04H, 3FH, 44H, 40H, 20H ; t
+   DB	3CH, 40H, 40H, 20H, 7CH ; u
+   DB	1CH, 20H, 40H, 20H, 1CH ; v
+   DB	3CH, 40H, 30H, 40H, 3CH ; w
+   DB	44H, 28H, 10H, 28H, 44H ; x
+   DB	0CH, 50H, 50H, 50H, 3CH ; y
+   DB	44H, 64H, 54H, 4CH, 44H ; z
+   DB   00H, 08H, 36H, 41H, 00H ; {
+   DB	00H, 00H, 7FH, 00H, 00H ; |
+   DB	00H, 41H, 36H, 08H, 00H ; }
+   DB	08H, 08H, 2AH, 1CH, 08H ; ->
+   DB	08H, 1CH, 2AH, 08H, 08H ; <- 
 
    TABELA DB 0111111b,0000110b,1011011b,1001111b
 	  DB 1100110b,1101101b,1111101b,0000111b
 	  DB 1111111b,1101111b,1110111b,1111100b
 	  DB 0111001b,1011110b,1111001b,1110001b
-
-   TABELA_REPETICOES DB 9, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", 0
    
+   MAPA DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+	DB "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"
+
+   TITULO DB ?, "POR FAVOR, DIGITE UMA SEQUENCIA NUMERICA !!!", 13, 13, 10, 0
+   
+   REPETICOES_DIGITADOS DB 10, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", 0
+   
+   TRACO DB 0, "?", 0
+   TAMANHO DB 0, "?", 0
+
    SEGUNDOS_UNID DB 0
    SEGUNDOS_DEZ  DB 0
 
    TEXTO DB ?, TAM_STRING+1 DUP(?)
    CONTADOR_LETRAS DB 0
 
-   MENSAGEM DB "HELIO POTELICKY",13,10,0
+   MENSAGEM DB "HELIO POTELICKY", 13 , 10, 0
 
 DATA 	  ENDS
 
